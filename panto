@@ -1,0 +1,28 @@
+#!/usr/bin/env pwsh
+
+param ([string]$cmd, [string[]]$cmdargs)
+
+$commands = @{
+  build = {
+    param ([string[]] $args)
+
+    $cmd = {
+      "pandoc ./*.md -f markdown -t pdf --filter pandoc-citeproc"
+      "-o $(Get-Location).pdf"
+      if ($bib = (Get-Item *.bib)) { "--bibliography $bib" }
+    }
+
+    (&$cmd) -join ' ' | Invoke-Expression
+  }
+
+  watch = { 
+    param ([string[]] $args)
+    $fsw = [System.IO.FileSystemWatcher]@{ Path="." }
+    $builder = { &$commands.build @args }
+    foreach ($evt in @("Created","Renamed","Changed","Deleted")) {
+      Register-ObjectEvent -InputObject $fsw -EventName $evt -Action $builder
+    }
+  }
+}
+
+&commands[$cmd] @cmdargs
