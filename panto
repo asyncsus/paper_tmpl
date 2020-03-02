@@ -4,15 +4,17 @@ param ([string]$cmd, [string[]]$cmdargs)
 
 $commands = @{
   build = {
-    param ([string[]] $args)
+    param ([switch] $open, [string[]] $args)
 
+    $outputFilename = (Get-Location) + ".pdf"
     $cmd = {
       "pandoc ./*.md -f markdown -t pdf --filter pandoc-citeproc"
-      "-o $(Get-Location).pdf"
+      "-o $outputFilename"
       if ($bib = (Get-Item *.bib)) { "--bibliography $bib" }
     }
 
     (&$cmd) -join ' ' | Invoke-Expression
+    if ($open) { Invoke-Item $outputFilename }
   }
 
   watch = { 
