@@ -1,30 +1,36 @@
 #!/usr/bin/env pwsh
 
-param ([string]$cmd, [string[]]$cmdargs)
+param ([string]$cmd)
 
-$commands = @{
-  build = {
-    param ([switch] $open, [string[]] $args)
-
-    $outputFilename = (Get-Location) + ".pdf"
-    $cmd = {
-      "pandoc ./*.md -f markdown -t pdf --filter pandoc-citeproc"
-      "-o $outputFilename"
-      if ($bib = (Get-Item *.bib)) { "--bibliography $bib" }
+function build {
+  param ([switch] $open)
+  $arguments = $args
+  $outputFilename = (Get-Item .).Name + ".pdf"
+  $cmd = {
+    "pandoc ./*.md -t latex"
+    "-o $outputFilename"
+    if ($bib = Get-Item *.bib) {
+      "--bibliography $bib"
+      "--filter pandoc-citeproc"    
     }
-
-    (&$cmd) -join ' ' | Invoke-Expression
-    if ($open) { Invoke-Item $outputFilename }
+    "$($arguments -join " ")"
   }
+  Write-Host (&$cmd)
+  (&$cmd) -join ' ' | Invoke-Expression
+  if ($open) { Invoke-Item $outputFilename }
+}
 
-  watch = { 
-    param ([string[]] $args)
-    $fsw = [System.IO.FileSystemWatcher]@{ Path="." }
-    $builder = { &$commands.build @args }
-    foreach ($evt in @("Created","Renamed","Changed","Deleted")) {
-      Register-ObjectEvent -InputObject $fsw -EventName $evt -Action $builder
-    }
+function watch { 
+  $fsw = [System.IO.FileSystemWatcher]@{ Path = "." }
+  $builder = { build @args }
+  foreach ($evt in @("Created", "Renamed", "Changed", "Deleted")) {
+    Register-ObjectEvent -InputObject $fsw -EventName $evt -Action $builder
   }
 }
 
-&commands[$cmd] @cmdargs
+$commands = @{
+  build="build"
+  watch="watch"
+}
+
+&$commands[$cmd] @args
